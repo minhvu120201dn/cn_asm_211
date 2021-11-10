@@ -68,19 +68,23 @@ class Client:
 	
 	def setupMovie(self):
 		"""Setup button handler."""
-	#TODO
+		if self.state == self.INIT:
+			self.sendRtspRequest(self.SETUP)
+			self.openRtpPort()
 	
 	def exitClient(self):
 		"""Teardown button handler."""
-	#TODO
+		#TODO
 
 	def pauseMovie(self):
 		"""Pause button handler."""
-	#TODO
+		if self.state == self.PLAYING:
+			self.sendRtspRequest(self.PAUSE)
 	
 	def playMovie(self):
 		"""Play button handler."""
-	#TODO
+		if self.state == self.READY:
+			self.sendRtspRequest(self.PLAY)
 	
 	def listenRtp(self):		
 		"""Listen for RTP packets."""
@@ -88,22 +92,36 @@ class Client:
 					
 	def writeFrame(self, data):
 		"""Write the received frame to a temp image file. Return the image file."""
-	#TODO
+		#TODO
 	
 	def updateMovie(self, imageFile):
 		"""Update the image file as video frame in the GUI."""
-	#TODO
+		#TODO
 		
 	def connectToServer(self):
 		"""Connect to the Server. Start a new RTSP/TCP session."""
-	#TODO
+		self.rtspSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.rtspSocket.settimeout(0.5)
+		try:
+			self.rtspSocket.connect((self.serverAddr, self.serverPort))
+		except:
+			tkinter.messagebox.showwarning('Failed to connect to server with IP address', self.serverAddr, 'and port', self.serverPort)
 	
 	def sendRtspRequest(self, requestCode):
 		"""Send RTSP request to the server."""	
 		#-------------
 		# TO COMPLETE
 		#-------------
-		
+		command = {self.SETUP: 'SETUP', self.PLAY: 'PLAY', self.PAUSE: 'PAUSE', self.TEARDOWN: 'TEARDOWN'}
+
+		request = command[requestCode] + ' ' + self.fileName + ' RTSP/1.0\nCSeq: ' + str(self.rtspSeq) + '\n'
+		if requestCode == self.SETUP:
+			request += 'Transport: RTP/UDP; client_port= ' + self.rtpPort
+
+		self.rtspSeq += 1
+		self.requestSent = command[requestCode]
+
+		self.rtspSocket.sendall(request.encode('utf-8'))
 	
 	
 	def recvRtspReply(self):
@@ -128,4 +146,4 @@ class Client:
 
 	def handler(self):
 		"""Handler on explicitly closing the GUI window."""
-		#TODO
+		self.master.destroy()
