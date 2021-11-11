@@ -33,7 +33,7 @@ class ServerWorker:
 		while True:            
 			data = connSocket.recv(256)
 			if data:
-				print("Data received:\n" + data.decode("utf-8"))
+				print("Data received:\n" + data.decode("utf-8") + '\n')
 				self.processRtspRequest(data.decode("utf-8"))
 	
 	def processRtspRequest(self, data):
@@ -53,7 +53,7 @@ class ServerWorker:
 		if requestType == self.SETUP:
 			if self.state == self.INIT:
 				# Update state
-				print("processing SETUP\n")
+				#print("processing SETUP\n")
 				
 				try:
 					self.clientInfo['videoStream'] = VideoStream(filename)
@@ -73,7 +73,7 @@ class ServerWorker:
 		# Process PLAY request 		
 		elif requestType == self.PLAY:
 			if self.state == self.READY:
-				print("processing PLAY\n")
+				#print("processing PLAY\n")
 				self.state = self.PLAYING
 				
 				# Create a new socket for RTP/UDP
@@ -89,7 +89,7 @@ class ServerWorker:
 		# Process PAUSE request
 		elif requestType == self.PAUSE:
 			if self.state == self.PLAYING:
-				print("processing PAUSE\n")
+				#print("processing PAUSE\n")
 				self.state = self.READY
 				
 				self.clientInfo['event'].set()
@@ -98,7 +98,7 @@ class ServerWorker:
 		
 		# Process TEARDOWN request
 		elif requestType == self.TEARDOWN:
-			print("processing TEARDOWN\n")
+			#print("processing TEARDOWN\n")
 
 			self.clientInfo['event'].set()
 			
@@ -153,6 +153,7 @@ class ServerWorker:
 			reply = 'RTSP/1.0 200 OK\nCSeq: ' + seq + '\nSession: ' + str(self.clientInfo['session'])
 			connSocket = self.clientInfo['rtspSocket'][0]
 			connSocket.send(reply.encode())
+			print('Data sent:\n' + reply + '\n')
 		
 		# Error messages
 		elif code == self.FILE_NOT_FOUND_404:

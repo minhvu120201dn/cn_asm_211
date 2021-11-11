@@ -8,6 +8,9 @@ from RtpPacket import RtpPacket
 CACHE_FILE_NAME = "cache-"
 CACHE_FILE_EXT = ".jpg"
 
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+
 class Client:
 	INIT = 0
 	READY = 1
@@ -63,8 +66,8 @@ class Client:
 		self.teardown.grid(row=1, column=3, padx=2, pady=2)
 		
 		# Create a label to display the movie
-		self.label = Label(self.master, height=19)
-		self.label.grid(row=0, column=0, columnspan=4, sticky=W+E+N+S, padx=5, pady=5) 
+		self.label = Label(self.master, height = 35)
+		self.label.grid(row = 0, column = 0, columnspan= 4, padx= 5, pady= 5)
 	
 	def setupMovie(self):
 		"""Setup button handler."""
@@ -91,22 +94,24 @@ class Client:
 		if self.state == self.READY:
 			self.sendRtspRequest(self.PLAY)
 	
-	def listenRtp(self):		
+	def listenRtp(self):
 		"""Listen for RTP packets."""
+		#print('Listening RTP')
 		while True:
 			try:
-				data = self.rtpSocket.recv(256)
-				if data:
-					rtpPacket = RtpPacket()
-					rtpPacket.decode(data)
-					currFrameNbr = rtpPacket.seqNum()
-
-					if currFrameNbr > self.frameNbr:
-						self.frameNbr = currFrameNbr
-						self.updateMovie(self.writeFrame(rtpPacket.getPayload))
-			except:
-				tkinter.messagebox.showerror('Error loading video')
+				data = self.rtpSocket.recv(4096)
+			except socket.error as error:
+				tkinter.messagebox.showerror('ERROR', error)
+				print('socket.error -', error)
 				break
+			if data:
+				rtpPacket = RtpPacket()
+				rtpPacket.decode(data)
+				currFrameNbr = rtpPacket.seqNum()
+
+				if currFrameNbr > self.frameNbr:
+					self.frameNbr = currFrameNbr
+					self.updateMovie(self.writeFrame(rtpPacket.getPayload()))
 					
 	def writeFrame(self, data):
 		"""Write the received frame to a temp image file. Return the image file."""
@@ -114,15 +119,14 @@ class Client:
 		file = open(tempFileName, 'wb')
 		file.write(data)
 		file.close()
-		print(self.frameNbr)
-		return file
+		return tempFileName
 	
 	def updateMovie(self, imageFile):
 		"""Update the image file as video frame in the GUI."""
 		img = Image.open(imageFile)
 		frameWidth = int(img.size[0] / img.size[1] * 500)
-		frame = ImageTk.PhotoImage(img.resize((frameWidth, 500), Image.ANTIALIAS))
-		self.label.configure(image = frame, height = 500)
+		frame = ImageTk.PhotoImage(img.resize((frameWidth,500), Image.ANTIALIAS))
+		self.label.configure(image = frame, height = 50)
 		self.label.image = frame
 
 		
@@ -141,9 +145,9 @@ class Client:
 		command = ['SETUP', 'PLAY', 'PAUSE', 'TEARDOWN']
 
 		self.rtspSeq += 1
-		request = command[requestCode] + ' ' + self.fileName + ' RTSP/1.0\nCSeq: ' + str(self.rtspSeq) + '\n'
+		request = command[requestCode] + ' ' + self.fileName + ' RTSP/1.0\nCSeq: ' + str(self.rtspSeq)
 		if requestCode == self.SETUP:
-			request += 'Transport: RTP/UDP; client_port= ' + str(self.rtpPort)
+			request += '\nTransport: RTP/UDP; client_port= ' + str(self.rtpPort)
 
 		self.requestSent = requestCode
 
@@ -189,6 +193,7 @@ class Client:
 		elif self.requestSent == self.PLAY:
 			self.state = self.PLAYING
 			print('Current state set to PLAYING')
+			threading.Thread(target = self.listenRtp).run()
 		elif self.requestSent == self.PAUSE:
 			self.state = self.READY
 			print('Current state set to PAUSE')
@@ -199,13 +204,12 @@ class Client:
 	
 	def openRtpPort(self):
 		"""Open RTP socket binded to a specified port."""
-		self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		self.rtpSocket.settimeout(0.5)
 		try:
-			self.rtpSocket.connect((self.serverAddr, self.serverPort))
+			self.rtpSocket.bind(('', self.rtpPort))
 		except:
 			tkinter.messagebox.showwarning('Failed to connect to server with IP address', self.serverAddr, 'and port', self.serverPort)
-		threading.Thread(target = self.listenRtp)
 
 
 	def handler(self):
