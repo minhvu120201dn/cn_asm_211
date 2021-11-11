@@ -96,18 +96,35 @@ class Client:
 		while True:
 			try:
 				data = self.rtpSocket.recv(256)
+				if data:
+					rtpPacket = RtpPacket()
+					rtpPacket.decode(data)
+					currFrameNbr = rtpPacket.seqNum()
+
+					if currFrameNbr > self.frameNbr:
+						self.frameNbr = currFrameNbr
+						self.updateMovie(self.writeFrame(rtpPacket.getPayload))
 			except:
+				tkinter.messagebox.showerror('Error loading video')
 				break
-			if data:
-				self.writeFrame(data)
 					
 	def writeFrame(self, data):
 		"""Write the received frame to a temp image file. Return the image file."""
-		#TODO
+		tempFileName = CACHE_FILE_NAME + str(self.sessionId) + CACHE_FILE_EXT
+		file = open(tempFileName, 'wb')
+		file.write(data)
+		file.close()
+		print(self.frameNbr)
+		return file
 	
 	def updateMovie(self, imageFile):
 		"""Update the image file as video frame in the GUI."""
-		#TODO
+		img = Image.open(imageFile)
+		frameWidth = int(img.size[0] / img.size[1] * 500)
+		frame = ImageTk.PhotoImage(img.resize((frameWidth, 500), Image.ANTIALIAS))
+		self.label.configure(image = frame, height = 500)
+		self.label.image = frame
+
 		
 	def connectToServer(self):
 		"""Connect to the Server. Start a new RTSP/TCP session."""
@@ -127,13 +144,12 @@ class Client:
 		request = command[requestCode] + ' ' + self.fileName + ' RTSP/1.0\nCSeq: ' + str(self.rtspSeq) + '\n'
 		if requestCode == self.SETUP:
 			request += 'Transport: RTP/UDP; client_port= ' + str(self.rtpPort)
-		print(request)
 
 		self.requestSent = requestCode
 
 		#print('Sending ' + command[requestCode] + ' request.....')
 		self.rtspSocket.sendall(request.encode('utf-8'))
-		#print('Request sent')
+		print(command[requestCode] + ' request sent')
 	
 	
 	def recvRtspReply(self):
@@ -147,7 +163,7 @@ class Client:
 			except:
 				break
 			if data:
-				print("Data received:\n" + data.decode("utf-8"))
+				#print("Data received:\n" + data.decode("utf-8"))
 				self.parseRtspReply(data.decode("utf-8"))
 		#print('Stopped receiving RTSP reply')
 
@@ -169,12 +185,16 @@ class Client:
 
 		if self.requestSent == self.SETUP:
 			self.state = self.READY
+			print('Current state set to READY')
 		elif self.requestSent == self.PLAY:
 			self.state = self.PLAYING
+			print('Current state set to PLAYING')
 		elif self.requestSent == self.PAUSE:
 			self.state = self.READY
+			print('Current state set to PAUSE')
 		elif self.requestSent == self.TEARDOWN:
 			self.state = self.INIT
+			print('Program finished')
 		
 	
 	def openRtpPort(self):
