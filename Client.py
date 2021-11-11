@@ -70,12 +70,15 @@ class Client:
 		"""Setup button handler."""
 		if self.state == self.INIT:
 			self.sendRtspRequest(self.SETUP)
+			self.openRtpPort()
 	
 	def exitClient(self):
 		"""Teardown button handler."""
-		self.sendRtspRequest(self.TEARDOWN)
-		self.rtspSocket.close()
-		self.master.destroy()
+		if self.state == self.READY or self.state == self.READY:
+			self.sendRtspRequest(self.TEARDOWN)
+			self.rtspSocket.close()
+			self.rtpSocket.close()
+			self.master.destroy()
 
 	def pauseMovie(self):
 		"""Pause button handler."""
@@ -131,7 +134,10 @@ class Client:
 	def recvRtspReply(self):
 		"""Receive RTSP reply from the server."""
 		while True:
-			data = self.rtspSocket.recv(256)
+			try:
+				data = self.rtspSocket.recv(256)
+			except:
+				break
 			if data:
 				print("Data received:\n" + data.decode("utf-8"))
 				self.parseRtspReply(data.decode("utf-8"))
@@ -171,9 +177,14 @@ class Client:
 		
 		# Set the timeout value of the socket to 0.5sec
 		# ...
+		self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.rtpSocket.settimeout(0.5)
+		try:
+			self.rtpSocket.connect((self.serverAddr, self.serverPort))
+		except:
+			tkinter.messagebox.showwarning('Failed to connect to server with IP address', self.serverAddr, 'and port', self.serverPort)
 		
 
 	def handler(self):
 		"""Handler on explicitly closing the GUI window."""
-		self.pauseMovie()
 		self.exitClient()
