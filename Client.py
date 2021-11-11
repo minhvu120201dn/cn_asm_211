@@ -87,22 +87,27 @@ class Client:
 	def pauseMovie(self):
 		"""Pause button handler."""
 		if self.state == self.PLAYING:
+			self.getFrame.set()
 			self.sendRtspRequest(self.PAUSE)
 	
 	def playMovie(self):
 		"""Play button handler."""
 		if self.state == self.READY:
+			self.getFrame.clear()
 			self.sendRtspRequest(self.PLAY)
 	
 	def listenRtp(self):
 		"""Listen for RTP packets."""
 		#print('Listening RTP')
 		while True:
+			if self.getFrame.is_set():
+				break
 			try:
 				data = self.rtpSocket.recv(4096)
 			except socket.error as error:
-				tkinter.messagebox.showerror('ERROR', error)
-				print('socket.error -', error)
+				if not self.getFrame.is_set():
+					tkinter.messagebox.showerror('ERROR', error)
+					print('socket.error -', error)
 				break
 			if data:
 				rtpPacket = RtpPacket()
@@ -115,7 +120,7 @@ class Client:
 					
 	def writeFrame(self, data):
 		"""Write the received frame to a temp image file. Return the image file."""
-		tempFileName = CACHE_FILE_NAME + str(self.sessionId) + CACHE_FILE_EXT
+		tempFileName = 'removable temporary files/' + CACHE_FILE_NAME + str(self.sessionId) + CACHE_FILE_EXT
 		file = open(tempFileName, 'wb')
 		file.write(data)
 		file.close()
@@ -138,6 +143,7 @@ class Client:
 		except:
 			tkinter.messagebox.showwarning('Failed to connect to server with IP address', self.serverAddr, 'and port', self.serverPort)
 		self.startRecvRtspReply = threading.Event()
+		self.getFrame = threading.Event()
 		threading.Thread(target = self.recvRtspReply).start()
 	
 	def sendRtspRequest(self, requestCode):
