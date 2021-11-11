@@ -69,12 +69,13 @@ class Client:
 	def setupMovie(self):
 		"""Setup button handler."""
 		if self.state == self.INIT:
+			self.startRecvRtspReply.set()
 			self.sendRtspRequest(self.SETUP)
 			self.openRtpPort()
 	
 	def exitClient(self):
 		"""Teardown button handler."""
-		if self.state == self.READY or self.state == self.READY:
+		if self.state == self.READY or self.state == self.PLAYING:
 			self.sendRtspRequest(self.TEARDOWN)
 			self.rtspSocket.close()
 			self.rtpSocket.close()
@@ -92,7 +93,13 @@ class Client:
 	
 	def listenRtp(self):		
 		"""Listen for RTP packets."""
-		#TODO
+		while True:
+			try:
+				data = self.rtpSocket.recv(256)
+			except:
+				break
+			if data:
+				self.writeFrame(data)
 					
 	def writeFrame(self, data):
 		"""Write the received frame to a temp image file. Return the image file."""
@@ -109,13 +116,11 @@ class Client:
 			self.rtspSocket.connect((self.serverAddr, self.serverPort))
 		except:
 			tkinter.messagebox.showwarning('Failed to connect to server with IP address', self.serverAddr, 'and port', self.serverPort)
+		self.startRecvRtspReply = threading.Event()
 		threading.Thread(target = self.recvRtspReply).start()
 	
 	def sendRtspRequest(self, requestCode):
-		"""Send RTSP request to the server."""	
-		#-------------
-		# TO COMPLETE
-		#-------------
+		"""Send RTSP request to the server."""
 		command = ['SETUP', 'PLAY', 'PAUSE', 'TEARDOWN']
 
 		self.rtspSeq += 1
@@ -133,7 +138,10 @@ class Client:
 	
 	def recvRtspReply(self):
 		"""Receive RTSP reply from the server."""
+		self.startRecvRtspReply.wait()
+		#print('Crossed the line')
 		while True:
+			#print('Listening')
 			try:
 				data = self.rtspSocket.recv(256)
 			except:
@@ -141,6 +149,8 @@ class Client:
 			if data:
 				print("Data received:\n" + data.decode("utf-8"))
 				self.parseRtspReply(data.decode("utf-8"))
+		#print('Stopped receiving RTSP reply')
+
 	
 	def parseRtspReply(self, data):
 		"""Parse the RTSP reply from the server."""
@@ -169,22 +179,24 @@ class Client:
 	
 	def openRtpPort(self):
 		"""Open RTP socket binded to a specified port."""
-		#-------------
-		# TO COMPLETE
-		#-------------
-		# Create a new datagram socket to receive RTP packets from the server
-		# self.rtpSocket = ...
-		
-		# Set the timeout value of the socket to 0.5sec
-		# ...
 		self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.rtpSocket.settimeout(0.5)
 		try:
 			self.rtpSocket.connect((self.serverAddr, self.serverPort))
 		except:
 			tkinter.messagebox.showwarning('Failed to connect to server with IP address', self.serverAddr, 'and port', self.serverPort)
-		
+		threading.Thread(target = self.listenRtp)
+
 
 	def handler(self):
 		"""Handler on explicitly closing the GUI window."""
-		self.exitClient()
+		self.pauseMovie()
+		if tkinter.messagebox.askokcancel("WARNING!!!", "Are you sure you want to stop watching your video and exit?"):
+			if self.state == self.INIT:
+				self.rtspSocket.close()
+				self.master.destroy()
+				self.startRecvRtspReply.set()
+			else:
+				self.exitClient()
+		else:
+			self.playMovie()
