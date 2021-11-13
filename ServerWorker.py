@@ -19,6 +19,7 @@ class ServerWorker:
 	OK_200 = 0
 	FILE_NOT_FOUND_404 = 1
 	CON_ERR_500 = 2
+	DESCRIPTION = 3
 	
 	clientInfo = {}
 	
@@ -111,10 +112,7 @@ class ServerWorker:
 		# Process DESCRIBE request
 		elif requestType == self.DESCRIBE:
 			#print("processing TEARDOWN\n")
-
-			self.clientInfo['event'].set()
-
-			self.sendDescription()
+			self.replyRtsp(self.DESCRIPTION, seq[1])
 			
 	def sendRtp(self):
 		"""Send RTP packets over UDP."""
@@ -158,9 +156,11 @@ class ServerWorker:
 		
 	def replyRtsp(self, code, seq):
 		"""Send RTSP reply to the client."""
-		if code == self.OK_200:
+		if code == self.OK_200 or code == self.DESCRIPTION:
 			#print("200 OK")
 			reply = 'RTSP/1.0 200 OK\nCSeq: ' + seq + '\nSession: ' + str(self.clientInfo['session'])
+			if code == self.DESCRIPTION:
+				reply += '\nStream: MJPEG format\nEncoding: RTP packet'
 			connSocket = self.clientInfo['rtspSocket'][0]
 			connSocket.send(reply.encode())
 			print('Data sent:\n' + reply + '\n')
@@ -170,10 +170,3 @@ class ServerWorker:
 			print("404 NOT FOUND")
 		elif code == self.CON_ERR_500:
 			print("500 CONNECTION ERROR")
-	
-	def sendDescription(self):
-		"""Send description for the video"""
-		reply = 'Stream: MJPEG format\nEncoding: RTP packet'
-		connSocket = self.clientInfo['rtspSocket'][0]
-		connSocket.send(reply.encode())
-		print('Data sent:\n' + reply + '\n')
