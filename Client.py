@@ -24,6 +24,7 @@ class Client:
 	DESCRIBE = 4
 	BACKWARD = 5
 	FORWARD = 6
+	SWITCH = 7
 	
 	# Initiation..
 	def __init__(self, master, serveraddr, serverport, rtpport, filename):
@@ -86,20 +87,30 @@ class Client:
 		self.describe.grid(row=2, column=3, padx=3, pady=3)
 
 		# Create Backward button
-		self.backward = Button(self.master, width=20, padx=3, pady=3)
-		self.backward["text"] = "<<"
-		self.backward["command"] = self.backwardMovie
-		self.backward.grid(row=1, column=1, padx=3, pady=3)
+		#self.backward = Button(self.master, width=20, padx=3, pady=3)
+		#self.backward["text"] = "<<"
+		#self.backward["command"] = self.backwardMovie
+		#self.backward.grid(row=1, column=1, padx=3, pady=3)
 
 		# Create Forward button
 		self.forward = Button(self.master, width=20, padx=3, pady=3)
 		self.forward["text"] = ">>"
 		self.forward["command"] = self.forwardMovie
 		self.forward.grid(row=1, column=2, padx=3, pady=3)
+
+		# Create Switch video button
+		self.switch = Button(self.master, width=20, padx=3, pady=3)
+		self.switch["text"] = "Switch video"
+		self.switch["command"] = self.switchMovie
+		self.switch.grid(row=1, column=4, padx=3, pady=3)
 		
 		# Create a label to display the movie
 		self.label = Label(self.master, height = 19)
 		self.label.grid(row = 0, column = 0, columnspan= 4, padx= 5, pady= 5)
+
+        # Menu listbox
+		self.listMenu = Listbox(self.master, height=19, width=20, bg='#EBECF0', highlightcolor='#D3D3D3', selectmode=SINGLE)
+		self.listMenu.grid(row=0, column=4, padx=5, pady=5)
 	
 	def setupMovie(self):
 		"""Setup button handler -> run without button"""
@@ -111,7 +122,7 @@ class Client:
 			print('Set up done\n')
 	
 	def exitClient(self):
-		"""Teardown button handler."""
+		"""Stop button handler."""
 		if self.state == self.READY or self.state == self.PLAYING:
 			self.pauseMovie()
 			self.waitCommand.wait()
@@ -125,6 +136,15 @@ class Client:
 
 			print('Data rate:', float(self.sumData / self.sumOfTime / 1024), 'KB/s')
 			print('Loss rate: ' + str(float(self.frameLoss / self.frameNbr) * 100) + '%')
+
+	def switchMovie(self):
+		"""Switch button handler"""
+		self.pauseMovie()
+		self.waitCommand.wait()
+		self.waitCommand.clear()
+		self.fileName = str(self.listMenu.get(ACTIVE))
+		self.frameNbr = 0
+		self.sendRtspRequest(self.SWITCH)
 
 	def pauseMovie(self):
 		"""Pause button handler."""
@@ -232,7 +252,7 @@ class Client:
 	
 	def sendRtspRequest(self, requestCode):
 		"""Send RTSP request to the server."""
-		command = ['SETUP', 'PLAY', 'PAUSE', 'TEARDOWN', 'DESCRIBE', 'BACKWARD', 'FORWARD']
+		command = ['SETUP', 'PLAY', 'PAUSE', 'TEARDOWN', 'DESCRIBE', 'BACKWARD', 'FORWARD', 'SWITCH']
 
 		self.rtspSeq += 1
 		request = command[requestCode] + ' ' + self.fileName + ' RTSP/1.0\nCSeq: ' + str(self.rtspSeq)
@@ -271,6 +291,10 @@ class Client:
 		seq = int(reply[1].split(' ')[1])
 		session = int(reply[2].split(' ')[1])
 
+		if reply[0] != 'RTSP/1.0 200 OK':
+			print('An error has occured in the server')
+			return
+
 		if seq != self.rtspSeq:
 			return
 		
@@ -287,6 +311,11 @@ class Client:
 		elif self.requestSent == self.SETUP and self.state == self.INIT:
 			self.state = self.READY
 			print('Current state set to READY\n')
+			fileList = reply[3:]
+			ind = 0
+			for file in fileList:
+				self.listMenu.insert(ind,file)
+				ind += 1
 			self.waitCommand.set()
 		elif self.requestSent == self.PLAY and self.state == self.READY:
 			self.state = self.PLAYING
@@ -305,6 +334,9 @@ class Client:
 			self.waitCommand.set()
 		elif self.requestSent == self.FORWARD:
 			print('Video just moved forward')
+			self.waitCommand.set()
+		elif self.requestSent == self.SWITCH:
+			print('Successfully switched video')
 			self.waitCommand.set()
 	
 	def openRtpPort(self):

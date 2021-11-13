@@ -18,6 +18,7 @@ class VideoStream:
 				data = self.file.read(framelength)
 				self.frameNum += 1
 		#print('Current frame number:', self.frameNum)
+		print('Sent data from file', self.filename)
 		return data
 		
 	def frameNbr(self):

@@ -1,5 +1,5 @@
 from random import randint
-import sys, traceback, threading, socket
+import sys, traceback, threading, socket, os
 
 from VideoStream import VideoStream
 from RtpPacket import RtpPacket
@@ -12,6 +12,7 @@ class ServerWorker:
 	DESCRIBE = 'DESCRIBE'
 	BACKWARD = 'BACKWARD'
 	FORWARD = 'FORWARD'
+	SWITCH = 'SWITCH'
 	
 	INIT = 0
 	READY = 1
@@ -22,6 +23,7 @@ class ServerWorker:
 	FILE_NOT_FOUND_404 = 1
 	CON_ERR_500 = 2
 	DESCRIPTION = 3
+	GET_LIST = 4
 	
 	clientInfo = {}
 	skip_frame = 1
@@ -75,7 +77,7 @@ class ServerWorker:
 				self.clientInfo['session'] = randint(100000, 999999)
 				
 				# Send RTSP reply
-				self.replyRtsp(self.OK_200, seq[1])
+				self.replyRtsp(self.GET_LIST, seq[1])
 				
 				# Get the RTP/UDP port from the last line
 				self.clientInfo['rtpPort'] = request[2].split(' ')[3]
@@ -130,6 +132,10 @@ class ServerWorker:
 		elif requestType == self.FORWARD:
 			self.replyRtsp(self.OK_200, seq[1])
 			self.skip_frame = 100
+		
+		elif requestType == self.SWITCH:
+			self.clientInfo['videoStream'] = VideoStream(line1[1])
+			self.replyRtsp(self.OK_200, seq[1])
 			
 	def sendRtp(self):
 		"""Send RTP packets over UDP."""
@@ -186,11 +192,15 @@ class ServerWorker:
 		
 	def replyRtsp(self, code, seq):
 		"""Send RTSP reply to the client."""
-		if code == self.OK_200 or code == self.DESCRIPTION:
+		if code == self.OK_200 or code == self.DESCRIPTION or code == self.GET_LIST:
 			#print("200 OK")
 			reply = 'RTSP/1.0 200 OK\nCSeq: ' + seq + '\nSession: ' + str(self.clientInfo['session'])
 			if code == self.DESCRIPTION:
-				reply += '\nStream: MJPEG format\nEncoding: RTP packet'
+				reply += '\nStream: MJPEG format\nEncoding: RTP packet\nFile name: ' + self.clientInfo['videoStream'].filename
+			elif code == self.GET_LIST:
+				for file in os.listdir():
+					if file.endswith(('.Mjpeg')):
+						reply += '\n' + str(file)
 			connSocket = self.clientInfo['rtspSocket'][0]
 			connSocket.send(reply.encode())
 			print('Data sent:\n' + reply + '\n')
