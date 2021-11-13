@@ -87,10 +87,10 @@ class Client:
 		self.describe.grid(row=2, column=3, padx=3, pady=3)
 
 		# Create Backward button
-		#self.backward = Button(self.master, width=20, padx=3, pady=3)
-		#self.backward["text"] = "<<"
-		#self.backward["command"] = self.backwardMovie
-		#self.backward.grid(row=1, column=1, padx=3, pady=3)
+		self.backward = Button(self.master, width=20, padx=3, pady=3)
+		self.backward["text"] = "<<"
+		self.backward["command"] = self.backwardMovie
+		self.backward.grid(row=1, column=1, padx=3, pady=3)
 
 		# Create Forward button
 		self.forward = Button(self.master, width=20, padx=3, pady=3)
@@ -173,9 +173,17 @@ class Client:
 
 	def backwardMovie(self):
 		"""Backward button handler."""
+		self.pauseMovie()
 		self.waitCommand.wait()
 		self.waitCommand.clear()
 		self.sendRtspRequest(self.BACKWARD)
+		self.playMovie()
+
+		self.frameLoss_event.wait()
+		self.frameLoss_event.clear()
+		self.frameLoss += 99
+		self.frameNbr -= 99
+		self.frameLoss_event.set()
 
 	def forwardMovie(self):
 		"""Forward button handler."""
@@ -188,6 +196,7 @@ class Client:
 		self.frameLoss_event.wait()
 		self.frameLoss_event.clear()
 		self.frameLoss -= 99
+		self.frameNbr += 99
 		self.frameLoss_event.set()
 	
 	def listenRtp(self):
@@ -216,9 +225,9 @@ class Client:
 					self.frameLoss_event.wait()
 					self.frameLoss_event.clear()
 					self.frameLoss += currFrameNbr - self.frameNbr - 1
+					self.frameNbr = currFrameNbr
 					self.frameLoss_event.set()
 
-					self.frameNbr = currFrameNbr
 					self.updateMovie(self.writeFrame(rtpPacket.getPayload()))
 			else:
 				break

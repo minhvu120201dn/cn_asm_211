@@ -126,12 +126,13 @@ class ServerWorker:
 
 		# Process BACKWARD request
 		elif requestType == self.BACKWARD:
+			self.clientInfo['videoStream'].prevFrame(100)
 			self.replyRtsp(self.OK_200, seq[1])
 
 		# Process FORWARD request
 		elif requestType == self.FORWARD:
-			self.replyRtsp(self.OK_200, seq[1])
 			self.skip_frame = 100
+			self.replyRtsp(self.OK_200, seq[1])
 		
 		elif requestType == self.SWITCH:
 			self.clientInfo['videoStream'] = VideoStream(line1[1])
