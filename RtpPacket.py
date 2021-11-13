@@ -20,7 +20,7 @@ class RtpPacket:
 		self.header[0] = (version << 6) | (padding << 5) | (extension << 4) | cc
 		self.header[1] = (marker << 7) | pt
 		self.header[2] = seqnum >> 8
-		self.header[3] = seqnum
+		self.header[3] = seqnum & 0xff
 		self.header[4] = timestamp >> 24
 		self.header[5] = (timestamp >> 16) & 0xff
 		self.header[6] = (timestamp >> 8) & 0xff

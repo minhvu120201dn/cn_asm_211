@@ -10,6 +10,8 @@ class ServerWorker:
 	PAUSE = 'PAUSE'
 	TEARDOWN = 'TEARDOWN'
 	DESCRIBE = 'DESCRIBE'
+	BACKWARD = 'BACKWARD'
+	FORWARD = 'FORWARD'
 	
 	INIT = 0
 	READY = 1
@@ -22,6 +24,7 @@ class ServerWorker:
 	DESCRIPTION = 3
 	
 	clientInfo = {}
+	skip_frame = 1
 	
 	def __init__(self, clientInfo):
 		self.clientInfo = clientInfo
@@ -32,8 +35,13 @@ class ServerWorker:
 	def recvRtspRequest(self):
 		"""Receive RTSP request from the client."""
 		connSocket = self.clientInfo['rtspSocket'][0]
-		while True:            
-			data = connSocket.recv(256)
+		while True:
+			try:
+				data = connSocket.recv(256)
+			except:
+				if self.state != self.INIT:
+					print('Client did not disconnect properly\n')
+				break
 			if data:
 				print("Data received:\n" + data.decode("utf-8") + '\n')
 				self.processRtspRequest(data.decode("utf-8"))
@@ -101,6 +109,7 @@ class ServerWorker:
 		# Process TEARDOWN request
 		elif requestType == self.TEARDOWN:
 			#print("processing TEARDOWN\n")
+			self.state = self.INIT
 
 			self.clientInfo['event'].set()
 			
@@ -111,31 +120,52 @@ class ServerWorker:
 		
 		# Process DESCRIBE request
 		elif requestType == self.DESCRIBE:
-			#print("processing TEARDOWN\n")
 			self.replyRtsp(self.DESCRIPTION, seq[1])
+
+		# Process BACKWARD request
+		elif requestType == self.BACKWARD:
+			self.replyRtsp(self.OK_200, seq[1])
+
+		# Process FORWARD request
+		elif requestType == self.FORWARD:
+			self.replyRtsp(self.OK_200, seq[1])
+			self.skip_frame = 100
 			
 	def sendRtp(self):
 		"""Send RTP packets over UDP."""
 		while True:
-			self.clientInfo['event'].wait(0.05) 
+			self.clientInfo['event'].wait(0.05)
 			
 			# Stop sending if request is PAUSE or TEARDOWN
 			if self.clientInfo['event'].isSet(): 
 				break 
-				
-			data = self.clientInfo['videoStream'].nextFrame()
+
+			data = self.clientInfo['videoStream'].nextFrame(self.skip_frame)
+			self.skip_frame = 1
+
 			if data:
 				frameNumber = self.clientInfo['videoStream'].frameNbr()
 				try:
 					address = self.clientInfo['rtspSocket'][1][0]
 					port = int(self.clientInfo['rtpPort'])
-					#print('RTP packet size:', bytearray(data).__sizeof__())
 					self.clientInfo['rtpSocket'].sendto(self.makeRtp(data, frameNumber),(address,port))
+					#print(data)
 				except:
 					print("Connection Error")
 					#print('-'*60)
 					#traceback.print_exc(file=sys.stdout)
 					#print('-'*60)
+			else:
+				try:
+					address = self.clientInfo['rtspSocket'][1][0]
+					port = int(self.clientInfo['rtpPort'])
+
+					# Send an empty data to the client
+					self.clientInfo['rtpSocket'].sendto(bytearray(),(address,port))
+					break
+					#print(data)
+				except:
+					print("Connection Error")
 
 	def makeRtp(self, payload, frameNbr):
 		"""RTP-packetize the video data."""

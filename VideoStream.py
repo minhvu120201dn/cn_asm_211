@@ -1,6 +1,3 @@
-#from io import BytesIO
-#from PIL import Image
-
 class VideoStream:
 	def __init__(self, filename):
 		self.filename = filename
@@ -10,17 +7,17 @@ class VideoStream:
 			raise IOError
 		self.frameNum = 0
 		
-	def nextFrame(self):
+	def nextFrame(self, skip = 1):
 		"""Get next frame."""
-		data = self.file.read(5) # Get the framelength from the first 5 bits
-		if data: 
-			framelength = int(data)
-							
-			# Read the current frame
-			data = self.file.read(framelength)
-			self.frameNum += 1
-			#file_jpgdata = BytesIO(data)
-			#Image.open(file_jpgdata).show()
+		for i in range(skip):
+			data = self.file.read(5) # Get the framelength from the first 5 bits
+			if data: 
+				framelength = int(data)
+								
+				# Read the current frame
+				data = self.file.read(framelength)
+				self.frameNum += 1
+		#print('Current frame number:', self.frameNum)
 		return data
 		
 	def frameNbr(self):
