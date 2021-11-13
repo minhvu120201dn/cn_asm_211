@@ -1,7 +1,7 @@
 from tkinter import *
 import tkinter.messagebox
 from PIL import Image, ImageTk
-import socket, threading, sys, traceback, os
+import socket, threading, sys, traceback, os, time
 
 from RtpPacket import RtpPacket
 
@@ -37,15 +37,21 @@ class Client:
 		self.teardownAcked = 0
 		self.connectToServer()
 		self.frameNbr = 0
+		self.frameLoss = 0
+		self.sumData = 0
+		self.sumOfTime = 0
+		self.clock = 0
+
+		self.setupMovie()
 
 	# THIS GUI IS JUST FOR REFERENCE ONLY, STUDENTS HAVE TO CREATE THEIR OWN GUI 	
 	def createWidgets(self):
 		"""Build GUI."""
 		# Create Setup button
-		self.setup = Button(self.master, width=20, padx=3, pady=3)
-		self.setup["text"] = "Setup"
-		self.setup["command"] = self.setupMovie
-		self.setup.grid(row=1, column=0, padx=2, pady=2)
+		#self.setup = Button(self.master, width=20, padx=3, pady=3)
+		#self.setup["text"] = "Setup"
+		#self.setup["command"] = self.setupMovie
+		#self.setup.grid(row=1, column=0, padx=2, pady=2)
 		
 		# Create Play button		
 		self.start = Button(self.master, width=20, padx=3, pady=3)
@@ -61,7 +67,7 @@ class Client:
 		
 		# Create Teardown button
 		self.teardown = Button(self.master, width=20, padx=3, pady=3)
-		self.teardown["text"] = "Teardown"
+		self.teardown["text"] = "Stop"
 		self.teardown["command"] =  self.exitClient
 		self.teardown.grid(row=1, column=3, padx=2, pady=2)
 		
@@ -86,15 +92,20 @@ class Client:
 			self.master.destroy()
 			os.remove(CACHE_FILE_NAME + str(self.sessionId) + CACHE_FILE_EXT)
 
+			print('Data rate:', float(self.sumData / self.sumOfTime / 1024), 'KB/s')
+			print('Loss rate: ' + str(float(self.frameLoss / self.frameNbr) * 100) + '%')
+
 	def pauseMovie(self):
 		"""Pause button handler."""
 		if self.state == self.PLAYING:
+			self.sumOfTime = time.time() - self.clock
 			self.getFrame.set()
 			self.sendRtspRequest(self.PAUSE)
 	
 	def playMovie(self):
 		"""Play button handler."""
 		if self.state == self.READY:
+			self.clock = time.time()
 			self.getFrame.clear()
 			self.sendRtspRequest(self.PLAY)
 	
@@ -106,6 +117,7 @@ class Client:
 				break
 			try:
 				data = self.rtpSocket.recv(20480)
+				self.sumData += len(data)
 			except socket.error as error:
 				if not self.getFrame.is_set() and self.teardownAcked == 0:
 					tkinter.messagebox.showerror('ERROR', error)
@@ -118,6 +130,7 @@ class Client:
 				currFrameNbr = rtpPacket.seqNum()
 
 				if currFrameNbr > self.frameNbr:
+					self.frameLoss += currFrameNbr - self.frameNbr - 1
 					self.frameNbr = currFrameNbr
 					self.updateMovie(self.writeFrame(rtpPacket.getPayload()))
 					
