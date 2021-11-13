@@ -9,6 +9,7 @@ class ServerWorker:
 	PLAY = 'PLAY'
 	PAUSE = 'PAUSE'
 	TEARDOWN = 'TEARDOWN'
+	DESCRIBE = 'DESCRIBE'
 	
 	INIT = 0
 	READY = 1
@@ -106,6 +107,14 @@ class ServerWorker:
 			
 			# Close the RTP socket
 			self.clientInfo['rtpSocket'].close()
+		
+		# Process DESCRIBE request
+		elif requestType == self.DESCRIBE:
+			#print("processing TEARDOWN\n")
+
+			self.clientInfo['event'].set()
+
+			self.sendDescription()
 			
 	def sendRtp(self):
 		"""Send RTP packets over UDP."""
@@ -161,3 +170,10 @@ class ServerWorker:
 			print("404 NOT FOUND")
 		elif code == self.CON_ERR_500:
 			print("500 CONNECTION ERROR")
+	
+	def sendDescription(self):
+		"""Send description for the video"""
+		reply = 'Stream: MJPEG format\nEncoding: RTP packet'
+		connSocket = self.clientInfo['rtspSocket'][0]
+		connSocket.send(reply.encode())
+		print('Data sent:\n' + reply + '\n')
