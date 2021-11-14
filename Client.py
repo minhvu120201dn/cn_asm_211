@@ -184,7 +184,7 @@ class Client:
 		self.waitCommand.wait()
 		self.waitCommand.clear()
 		self.sendRtspRequest(self.BACKWARD)
-		self.playMovie()
+		#self.playMovie()
 
 		self.caculationEvent.wait()
 		self.caculationEvent.clear()
@@ -200,7 +200,7 @@ class Client:
 		self.waitCommand.wait()
 		self.waitCommand.clear()
 		self.sendRtspRequest(self.FORWARD)
-		self.playMovie()
+		#self.playMovie()
 
 		self.caculationEvent.wait()
 		self.caculationEvent.clear()
