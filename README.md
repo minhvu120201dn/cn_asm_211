@@ -1,7 +1,5 @@
-# cn_asm_211
-# cn_asm_211
-# cn_asm_211
-<<<<<<< HEAD
-# CN211_rtsp_streaming
-=======
->>>>>>> 6f1f892a398f1baf39491098d88e37e5f0d8c000
+This is a simple video stream application
+To start the server, type:
+  python Server.py <Server_port>
+The client can only be executed when there is at least one server. To start the client, type:
+  python ClientLauncher.py <Server_address> <Server_port> <RTP_port> <file_name>
