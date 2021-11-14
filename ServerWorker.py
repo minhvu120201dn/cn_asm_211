@@ -4,6 +4,8 @@ import sys, traceback, threading, socket, os
 from VideoStream import VideoStream
 from RtpPacket import RtpPacket
 
+FILE_EXTENSION_ = ('.Mjpeg', '.mjpeg')
+
 class ServerWorker:
 	SETUP = 'SETUP'
 	PLAY = 'PLAY'
@@ -200,7 +202,7 @@ class ServerWorker:
 				reply += '\nStream: MJPEG format\nEncoding: RTP packet\nFile name: ' + self.clientInfo['videoStream'].filename
 			elif code == self.GET_LIST:
 				for file in os.listdir():
-					if file.endswith(('.Mjpeg')):
+					if file.endswith(FILE_EXTENSION_):
 						reply += '\n' + str(file)
 			connSocket = self.clientInfo['rtspSocket'][0]
 			connSocket.send(reply.encode())

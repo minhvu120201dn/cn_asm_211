@@ -44,8 +44,8 @@ class Client:
 		self.getFrame = threading.Event()
 		self.waitCommand = threading.Event()
 		self.waitCommand.set()
-		self.frameLoss_event = threading.Event()
-		self.frameLoss_event.set()
+		self.caculationEvent = threading.Event()
+		self.caculationEvent.set()
 		self.connectToServer()
 		self.frameNbr = 0
 		self.frameLoss = 0
@@ -111,6 +111,12 @@ class Client:
         # Menu listbox
 		self.listMenu = Listbox(self.master, height=19, width=20, bg='#EBECF0', highlightcolor='#D3D3D3', selectmode=SINGLE)
 		self.listMenu.grid(row=0, column=4, padx=5, pady=5)
+
+		# Display time
+		self.currTime = StringVar()
+		self.currTime.set("00:00")
+		self.currTimeLabel = Label(self.master, textvariable=self.currTime)
+		self.currTimeLabel.grid(row=1, column=0, padx=3, pady=3)
 	
 	def setupMovie(self):
 		"""Setup button handler -> run without button"""
@@ -179,11 +185,12 @@ class Client:
 		self.sendRtspRequest(self.BACKWARD)
 		self.playMovie()
 
-		self.frameLoss_event.wait()
-		self.frameLoss_event.clear()
-		self.frameLoss += 99
+		self.caculationEvent.wait()
+		self.caculationEvent.clear()
 		self.frameNbr -= 99
-		self.frameLoss_event.set()
+		if self.frameNbr < 0:
+			self.frameNbr = 0
+		self.caculationEvent.set()
 
 	def forwardMovie(self):
 		"""Forward button handler."""
@@ -193,18 +200,17 @@ class Client:
 		self.sendRtspRequest(self.FORWARD)
 		self.playMovie()
 
-		self.frameLoss_event.wait()
-		self.frameLoss_event.clear()
-		self.frameLoss -= 99
+		self.caculationEvent.wait()
+		self.caculationEvent.clear()
 		self.frameNbr += 99
-		self.frameLoss_event.set()
+		self.caculationEvent.set()
 	
 	def listenRtp(self):
 		"""Listen for RTP packets."""
 		#print('Listening RTP')
 		clock = time.time()
 		while True:
-			#print('Current frame number:', self.frameNbr)
+			#print(self.frameNbr)
 			if self.getFrame.is_set():
 				break
 			try:
@@ -222,17 +228,24 @@ class Client:
 				currFrameNbr = rtpPacket.seqNum()
 
 				if currFrameNbr > self.frameNbr:
-					self.frameLoss_event.wait()
-					self.frameLoss_event.clear()
+					self.caculationEvent.wait()
+					self.caculationEvent.clear()
 					self.frameLoss += currFrameNbr - self.frameNbr - 1
 					self.frameNbr = currFrameNbr
-					self.frameLoss_event.set()
+					self.caculationEvent.set()
 
 					self.updateMovie(self.writeFrame(rtpPacket.getPayload()))
+					self.updateTime()
 			else:
 				break
 		self.sumOfTime += time.time() - clock
 		print('Stopped listening to RTP packets\n')
+	
+	def updateTime(self):
+		sec = int(self.frameNbr / 20)
+		mm = int(sec / 60)
+		ss = sec % 60
+		self.currTime.set("{:02d}:{:02d}".format(mm, ss))
 					
 	def writeFrame(self, data):
 		"""Write the received frame to a temp image file. Return the image file."""
@@ -314,7 +327,10 @@ class Client:
 			return
 
 		if self.describeRequest:
-			tkinter.messagebox.showinfo('Video Description', reply[3:])
+			description = ''
+			for line in reply[3:]:
+				description += line + '\n'
+			tkinter.messagebox.showinfo('Video Description', description)
 			self.describeRequest = False
 			self.waitCommand.set()
 		elif self.requestSent == self.SETUP and self.state == self.INIT:
