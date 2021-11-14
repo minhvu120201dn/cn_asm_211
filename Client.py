@@ -51,6 +51,7 @@ class Client:
 		self.frameLoss = 0
 		self.sumData = 0
 		self.sumOfTime = 0
+		self.frameSkipped = 0
 		self.setupMovie()
 
 	# THIS GUI IS JUST FOR REFERENCE ONLY, STUDENTS HAVE TO CREATE THEIR OWN GUI 	
@@ -141,7 +142,7 @@ class Client:
 			os.remove(CACHE_FILE_NAME + str(self.sessionId) + CACHE_FILE_EXT)
 
 			print('Data rate:', float(self.sumData / self.sumOfTime / 1024), 'KB/s')
-			print('Loss rate: ' + str(float(self.frameLoss / self.frameNbr) * 100) + '%')
+			print('Loss rate: ' + str(float(self.frameLoss / (self.frameNbr + self.frameSkipped)) * 100) + '%')
 
 	def switchMovie(self):
 		"""Switch button handler"""
@@ -188,6 +189,7 @@ class Client:
 		self.caculationEvent.wait()
 		self.caculationEvent.clear()
 		self.frameNbr -= 99
+		self.frameSkipped += 99
 		if self.frameNbr < 0:
 			self.frameNbr = 0
 		self.caculationEvent.set()
@@ -203,6 +205,7 @@ class Client:
 		self.caculationEvent.wait()
 		self.caculationEvent.clear()
 		self.frameNbr += 99
+		self.frameSkipped -= 99
 		self.caculationEvent.set()
 	
 	def listenRtp(self):
