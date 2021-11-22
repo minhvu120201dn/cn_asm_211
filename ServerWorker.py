@@ -28,7 +28,8 @@ class ServerWorker:
 	GET_LIST = 4
 	
 	clientInfo = {}
-	skip_frame = 1
+	fast_forward = threading.Event()
+	fast_backward = threading.Event()
 	
 	def __init__(self, clientInfo):
 		self.clientInfo = clientInfo
@@ -49,7 +50,8 @@ class ServerWorker:
 			if data:
 				print("Data received:\n" + data.decode("utf-8") + '\n')
 				self.processRtspRequest(data.decode("utf-8"))
-	
+		print('Stopped receiving RTSP requests')
+
 	def processRtspRequest(self, data):
 		"""Process RTSP request sent from the client."""
 		# Get the request type
@@ -128,12 +130,12 @@ class ServerWorker:
 
 		# Process BACKWARD request
 		elif requestType == self.BACKWARD:
-			self.clientInfo['videoStream'].prevFrame(100)
+			self.fast_backward.set()
 			self.replyRtsp(self.OK_200, seq[1])
 
 		# Process FORWARD request
 		elif requestType == self.FORWARD:
-			self.skip_frame = 100
+			self.fast_forward.set()
 			self.replyRtsp(self.OK_200, seq[1])
 		
 		elif requestType == self.SWITCH:
@@ -149,8 +151,13 @@ class ServerWorker:
 			if self.clientInfo['event'].isSet(): 
 				break 
 
-			data = self.clientInfo['videoStream'].nextFrame(self.skip_frame)
-			self.skip_frame = 1
+			if self.fast_backward.is_set():
+				data = self.clientInfo['videoStream'].prevFrame(100)
+				self.fast_backward.clear()
+			if self.fast_forward.is_set():
+				data = self.clientInfo['videoStream'].nextFrame(100)
+				self.fast_forward.clear()
+			data = self.clientInfo['videoStream'].nextFrame()
 
 			if data:
 				frameNumber = self.clientInfo['videoStream'].frameNbr()

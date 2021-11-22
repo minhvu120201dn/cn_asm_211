@@ -78,7 +78,7 @@ class Client:
 		# Create Teardown button
 		self.teardown = Button(self.master, width=20, padx=3, pady=3)
 		self.teardown["text"] = "Stop"
-		self.teardown["command"] =  self.exitClient
+		self.teardown["command"] =  self.stopMovie
 		self.teardown.grid(row=2, column=2, padx=2, pady=2)
 
 		# Create Describe button
@@ -143,6 +143,15 @@ class Client:
 
 			print('Data rate:', float(self.sumData / self.sumOfTime / 1024), 'KB/s')
 			print('Loss rate: ' + str(float(self.frameLoss / (self.frameNbr + self.frameSkipped)) * 100) + '%')
+	
+	def stopMovie(self):
+		"""Stop button handler"""
+		self.pauseMovie()
+		self.waitCommand.wait()
+		self.waitCommand.clear()
+		#self.fileName = str(self.listMenu.get(ACTIVE))
+		self.frameNbr = 0
+		self.sendRtspRequest(self.SWITCH)
 
 	def switchMovie(self):
 		"""Switch button handler"""
@@ -180,33 +189,35 @@ class Client:
 
 	def backwardMovie(self):
 		"""Backward button handler."""
-		self.pauseMovie()
-		self.waitCommand.wait()
-		self.waitCommand.clear()
-		self.sendRtspRequest(self.BACKWARD)
+		#self.pauseMovie()
 		#self.playMovie()
+		if self.state == self.PLAYING:
+			self.waitCommand.wait()
+			self.waitCommand.clear()
+			self.sendRtspRequest(self.BACKWARD)
 
-		self.caculationEvent.wait()
-		self.caculationEvent.clear()
-		self.frameNbr -= 99
-		self.frameSkipped += 99
-		if self.frameNbr < 0:
-			self.frameNbr = 0
-		self.caculationEvent.set()
+			self.caculationEvent.wait()
+			self.caculationEvent.clear()
+			self.frameNbr -= 99
+			self.frameSkipped += 99
+			if self.frameNbr < 0:
+				self.frameNbr = 0
+			self.caculationEvent.set()
 
 	def forwardMovie(self):
 		"""Forward button handler."""
-		self.pauseMovie()
-		self.waitCommand.wait()
-		self.waitCommand.clear()
-		self.sendRtspRequest(self.FORWARD)
+		#self.pauseMovie()
 		#self.playMovie()
+		if self.state == self.PLAYING:
+			self.waitCommand.wait()
+			self.waitCommand.clear()
+			self.sendRtspRequest(self.FORWARD)
 
-		self.caculationEvent.wait()
-		self.caculationEvent.clear()
-		self.frameNbr += 99
-		self.frameSkipped -= 99
-		self.caculationEvent.set()
+			self.caculationEvent.wait()
+			self.caculationEvent.clear()
+			self.frameNbr += 99
+			self.frameSkipped -= 99
+			self.caculationEvent.set()
 	
 	def listenRtp(self):
 		"""Listen for RTP packets."""
@@ -298,14 +309,17 @@ class Client:
 		self.startRecvRtspReply.wait()
 		#print('Crossed the line')
 		while True:
-			#print('Listening')
+			#print('Listening to RTSP reply.....\n')
 			try:
 				data = self.rtspSocket.recv(256)
 			except:
 				break
+			print('Received data\n')
 			if data:
 				print("Data received:\n" + data.decode("utf-8") + '\n')
 				self.parseRtspReply(data.decode("utf-8"))
+			self.waitCommand.set()
+			#print('Processed RTSP reply.....\n')
 		print('Stopped receiving RTSP reply\n')
 
 	
@@ -335,7 +349,6 @@ class Client:
 				description += line + '\n'
 			tkinter.messagebox.showinfo('Video Description', description)
 			self.describeRequest = False
-			self.waitCommand.set()
 		elif self.requestSent == self.SETUP and self.state == self.INIT:
 			self.state = self.READY
 			print('Current state set to READY\n')
@@ -344,28 +357,22 @@ class Client:
 			for file in fileList:
 				self.listMenu.insert(ind,file)
 				ind += 1
-			self.waitCommand.set()
 		elif self.requestSent == self.PLAY and self.state == self.READY:
 			self.state = self.PLAYING
 			print('Current state set to PLAYING\n')
-			self.waitCommand.set()
-			threading.Thread(target = self.listenRtp).run()
+			threading.Thread(target = self.listenRtp).start()
 		elif self.requestSent == self.PAUSE and self.state == self.PLAYING:
 			self.state = self.READY
 			print('Current state set to PAUSE\n')
-			self.waitCommand.set()
 		elif self.requestSent == self.TEARDOWN and (self.state == self.READY or self.state == self.PLAYING):
 			self.state = self.INIT
 			print('Current state set to INIT\n')
 		elif self.requestSent == self.BACKWARD:
-			print('Video just moved backward')
-			self.waitCommand.set()
+			print('Video just moved backward\n')
 		elif self.requestSent == self.FORWARD:
-			print('Video just moved forward')
-			self.waitCommand.set()
+			print('Video just moved forward\n')
 		elif self.requestSent == self.SWITCH:
-			print('Successfully switched video')
-			self.waitCommand.set()
+			print('Successfully switched video\n')
 	
 	def openRtpPort(self):
 		"""Open RTP socket binded to a specified port."""

@@ -28,8 +28,8 @@ class VideoStream:
 				self.frameNum += 1
 				self.currLocation += 5 + framelength
 
-		# print('Current frame number:', self.frameNum)
-		# print('Sent data from file', self.filename)
+		#print('Current frame number:', self.frameNum)
+		#print('Sent data from file', self.filename)
 		return data
 
 	def prevFrame(self, skip=1):
@@ -41,6 +41,10 @@ class VideoStream:
 		self.currLocation = self.frameLocation[self.filename][self.frameNum]
 
 		self.file.seek(self.currLocation)
+
+		#print('Current frame number:', self.frameNum)
+		#print('Sent data from file', self.filename)
+		return self.nextFrame()
 
 	def frameNbr(self):
 		"""Get frame number."""
